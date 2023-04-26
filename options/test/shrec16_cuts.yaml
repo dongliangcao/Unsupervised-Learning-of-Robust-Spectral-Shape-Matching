@@ -20,7 +20,7 @@ datasets:
     name: Val
     type: PairShrec16Dataset
     cut_type: cuts
-    data_root: /data/caodongliang/SHREC16_test/
+    data_root: ../data/SHREC16_test/
     return_evecs: true
     return_faces: true
     num_evecs: 200
@@ -33,7 +33,7 @@ networks:
     type: DiffusionNet
     in_channels: 3
     out_channels: 256
-    cache_dir: /data/caodongliang/SHREC16/cuts/diffusion
+    cache_dir: ../data/SHREC16/cuts/diffusion
     input_type: xyz
   fmap_net:
     type: RegularizedFMNet

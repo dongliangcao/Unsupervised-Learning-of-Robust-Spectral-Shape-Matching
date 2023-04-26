@@ -19,7 +19,7 @@ datasets:
     name: ScapeVal
     type: PairScapeDataset
     phase: test
-    data_root: /data/caodongliang/SCAPE_r/
+    data_root: ../data/SCAPE_r/
     return_evecs: true
     return_faces: true
     num_evecs: 200
@@ -32,7 +32,7 @@ networks:
     type: DiffusionNet
     in_channels: 128
     out_channels: 256
-    cache_dir: /data/caodongliang/SCAPE_r/diffusion
+    cache_dir: ../data/SCAPE_r/diffusion
     input_type: wks
   permutation:
     type: Similarity

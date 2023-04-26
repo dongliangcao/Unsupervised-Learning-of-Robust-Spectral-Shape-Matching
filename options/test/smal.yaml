@@ -20,7 +20,7 @@ datasets:
     name: Val
     type: PairSmalDataset
     phase: test
-    data_root: /data/caodongliang/SMAL_r/
+    data_root: ../data/SMAL_r/
     category: true
     return_evecs: true
     return_faces: true
@@ -34,7 +34,7 @@ networks:
     type: DiffusionNet
     in_channels: 3
     out_channels: 256
-    cache_dir: /data/caodongliang/SMAL_r/diffusion
+    cache_dir: ../data/SMAL_r/diffusion
     input_type: xyz
   fmap_net:
     type: RegularizedFMNet

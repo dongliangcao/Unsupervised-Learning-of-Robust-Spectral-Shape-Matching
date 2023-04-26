@@ -20,7 +20,7 @@ datasets:
     name: Val
     type: PairTopKidsDataset
     phase: test
-    data_root: /data/caodongliang/TOPKIDS/
+    data_root: ../data/TOPKIDS/
     return_evecs: true
     return_faces: true
     num_evecs: 200
@@ -32,7 +32,7 @@ networks:
     type: DiffusionNet
     in_channels: 128
     out_channels: 256
-    cache_dir: /data/caodongliang/TOPKIDS/diffusion
+    cache_dir: ../data/TOPKIDS/diffusion
     input_type: wks
   fmap_net:
     type: RegularizedFMNet
