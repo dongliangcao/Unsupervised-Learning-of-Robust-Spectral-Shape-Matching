@@ -49,7 +49,8 @@ def create_train_val_dataloader(opt, logger):
         sampler=train_sampler,
         seed=opt['manual_seed'])
     batch_size = opt['datasets']['batch_size']
-    num_iter_per_epoch = len(train_loader)
+    num_iter_per_epoch = math.ceil(
+        len(train_set) * dataset_enlarge_ratio / batch_size)
     total_epochs = int(opt['train']['total_epochs'])
     total_iters = total_epochs * num_iter_per_epoch
     logger.info('Training statistics:'
@@ -87,7 +88,7 @@ def train_pipeline(root_path):
     result = create_train_val_dataloader(opt, logger)
     train_loader, train_sampler, val_loader, total_epochs, total_iters = result
     opt['train']['total_iter'] = total_iters
-    
+
     # create model
     model = build_model(opt)
 

@@ -1,4 +1,3 @@
-import logging
 from os import path as osp
 
 from datasets import build_dataloader, build_dataset

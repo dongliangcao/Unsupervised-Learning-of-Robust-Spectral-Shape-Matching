@@ -1,0 +1,48 @@
+# general setting
+name: scape
+backend: dp # DataParallel
+type: FMNetModel
+num_gpu: auto
+manual_seed: 1234
+non-isometric: false
+partial: false
+visualize: true
+
+# path
+path:
+  resume_state: checkpoints/scape.pth
+  resume: false
+
+# datasets
+datasets:
+  test_dataset:
+    name: ScapeVal
+    type: PairScapeDataset
+    phase: test
+    data_root: /data/caodongliang/SCAPE_r/
+    return_evecs: true
+    return_faces: true
+    num_evecs: 200
+    return_corr: true
+    return_dist: true
+
+# network setting
+networks:
+  feature_extractor:
+    type: DiffusionNet
+    in_channels: 128
+    out_channels: 256
+    cache_dir: /data/caodongliang/SCAPE_r/diffusion
+    input_type: wks
+  permutation:
+    type: Similarity
+    tau: 0.07
+    hard: true
+
+# validation setting
+val:
+  metrics:
+    geo_error:
+      type: calculate_geodesic_error
+    plot_pck:
+      type: plot_pck

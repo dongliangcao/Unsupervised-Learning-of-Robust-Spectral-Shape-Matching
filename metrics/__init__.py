@@ -26,7 +26,7 @@ def build_metric(opt):
         metric (nn.Module): metric built by opt.
     """
     opt_type = opt.pop('type')
-    metric = METRIC_REGISTRY.get(opt_type)(**opt)
+    metric = METRIC_REGISTRY.get(opt_type)
     logger = get_root_logger()
     logger.info(f'Metric [{metric.__class__.__name__}] is created.')
 

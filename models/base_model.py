@@ -1,6 +1,11 @@
 import os
 import time
+import shutil
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy.io as sio
 from copy import deepcopy
+from tqdm import tqdm
 from collections import OrderedDict
 
 import torch
@@ -11,9 +16,12 @@ from networks import build_network
 from losses import build_loss
 from metrics import build_metric
 
-from .lr_scheduler import CosineAnnealingRestartLR, MultiStepRestartLR
+from .lr_scheduler import MultiStepRestartLR
 from utils import get_root_logger
 from utils.dist_util import master_only
+from utils.logger import AvgTimer
+from utils.texture_util import write_obj_pair, write_point_cloud_pair
+from utils.tensor_util import to_numpy
 
 
 class BaseModel:
@@ -22,6 +30,7 @@ class BaseModel:
     Usually, feed_data, optimize_parameters and update_model
     need to be override.
     """
+
     def __init__(self, opt):
         """
         Construct BaseModel.
@@ -68,7 +77,29 @@ class BaseModel:
 
     def optimize_parameters(self):
         """forward pass"""
-        pass
+        # compute total loss
+        loss = 0.0
+        for k, v in self.loss_metrics.items():
+            if k != 'l_total':
+                loss += v
+
+        # update loss metrics
+        self.loss_metrics['l_total'] = loss
+
+        # zero grad
+        for name in self.optimizers:
+            self.optimizers[name].zero_grad()
+
+        # backward pass
+        loss.backward()
+
+        # clip gradient for stability
+        for key in self.networks:
+            torch.nn.utils.clip_grad_norm_(self.networks[key].parameters(), 1.0)
+
+        # update weight
+        for name in self.optimizers:
+            self.optimizers[name].step()
 
     def update_model_per_iteration(self):
         """update model per iteration"""
@@ -105,7 +136,105 @@ class BaseModel:
             tb_logger (tensorboard logger): Tensorboard logger.
             update (bool): update best metric and best model. Default True
         """
-        pass
+        self.eval()
+
+        # save results
+        metrics_result = {}
+
+        # geodesic errors
+        geo_errors = []
+
+        # one iteration
+        timer = AvgTimer()
+        pbar = tqdm(dataloader)
+        for index, data in enumerate(pbar):
+            p2p, Pyx, Cxy = self.validate_single(data, timer)
+            p2p, Pyx, Cxy = to_numpy(p2p), to_numpy(Pyx), to_numpy(Cxy)
+            if 'geo_error' in self.metrics:
+                data_x, data_y = data['first'], data['second']
+                # get geodesic distance matrix
+                if 'dist' in data_x:
+                    dist_x = data_x['dist']
+                else:
+                    dist_x = torch.cdist(data_x['verts'], data_x['verts'])
+
+                # get gt correspondence
+                corr_x = data_x['corr']
+                corr_y = data_y['corr']
+
+                # convert torch.Tensor to numpy.ndarray
+                dist_x = to_numpy(dist_x)
+                corr_x = to_numpy(corr_x)
+                corr_y = to_numpy(corr_y)
+
+                # compute geodesic error
+                geo_err = self.metrics['geo_error'](dist_x, corr_x, corr_y, p2p, return_mean=False)
+
+                # show result
+                pbar.set_description(f'geo error: {geo_err.mean():.4f}')
+
+                geo_errors += [geo_err]
+
+            # visualize results
+            if self.opt.get('visualize', False):
+                data_x, data_y = data['first'], data['second']
+                verts_x, verts_y = to_numpy(data_x['verts']), to_numpy(data_y['verts'])
+                name_x, name_y = data['first']['name'][0], data['second']['name'][0]
+                if 'faces' in data_x:
+                    if os.path.isfile('figures/texture.png'):
+                        shutil.copy('figures/texture.png',
+                                    os.path.join(self.opt['path']['visualization'], 'texture.png'))
+                    faces_x, faces_y = to_numpy(data_x['faces']), to_numpy(data_y['faces'])
+                    file_x = os.path.join(self.opt['path']['visualization'], f'{name_x}.obj')
+                    file_y = os.path.join(self.opt['path']['visualization'], f'{name_x}-{name_y}.obj')
+                    write_obj_pair(file_x, file_y, verts_x, faces_x, verts_y, faces_y, Pyx, 'texture.png')
+                else:
+                    file_x = os.path.join(self.opt['path']['visualization'], f'{name_x}.ply')
+                    file_y = os.path.join(self.opt['path']['visualization'], f'{name_y}-{name_x}.ply')
+                    write_point_cloud_pair(file_x, file_y, verts_x, verts_y, p2p)
+
+                # save functional map and point-wise correspondences
+                save_dict = {'Cxy': Cxy, 'p2p': p2p + 1}  # plus one for MATLAB
+                sio.savemat(os.path.join(self.opt['path']['visualization'], f'{name_x}-{name_y}.mat'), save_dict)
+
+        logger = get_root_logger()
+        logger.info(f'Avg time: {timer.get_avg_time():.4f}')
+
+        if len(geo_errors) != 0:
+            geo_errors = np.concatenate(geo_errors)
+            avg_geo_error = geo_errors.mean()
+            metrics_result['avg_error'] = avg_geo_error
+
+            auc, fig, pcks = self.metrics['plot_pck'](geo_errors)
+            metrics_result['auc'] = auc
+
+            if tb_logger is not None:
+                step = self.curr_iter // self.opt['val']['val_freq']
+                tb_logger.add_figure('pck', fig, global_step=step)
+                tb_logger.add_scalar('val auc', auc, global_step=step)
+                tb_logger.add_scalar('val avg error', avg_geo_error, global_step=step)
+            else:
+                # save image
+                plt.savefig(os.path.join(self.opt['path']['visualization'], 'pck.png'))
+                # save pcks
+                np.save(os.path.join(self.opt['path']['visualization'], 'pck.npy'), pcks)
+
+            # display results
+            logger = get_root_logger()
+            logger.info(f'Val auc: {auc:.4f}')
+            logger.info(f'Val avg error: {avg_geo_error:.4f}')
+
+            # update best model state dict
+            if update and (self.best_metric is None or (metrics_result['avg_error'] < self.best_metric)):
+                self.best_metric = metrics_result['avg_error']
+                self.best_networks_state_dict = self._get_networks_state_dict()
+                logger.info(f'Best model is updated, average geodesic error: {self.best_metric:.4f}')
+
+        # train mode
+        self.train()
+
+    def validate_single(self, data, timer):
+        raise NotImplementedError
 
     def get_loss_metrics(self):
         if self.opt['dist']:
@@ -168,7 +297,7 @@ class BaseModel:
                 logger = get_root_logger()
                 logger.info(f'Network {name} has no param to optimize. Ignore it.')
                 continue
-            
+
             if name in train_opt['optims']:
                 optim_type = train_opt['optims'][name].pop('type')
                 optimizer = get_optimizer()
@@ -191,7 +320,8 @@ class BaseModel:
             elif scheduler_type == 'CosineAnnealingLR':
                 self.schedulers[name] = optim.lr_scheduler.CosineAnnealingLR(optimizer, **scheduler_opts[name])
             elif scheduler_type == 'CosineAnnealingWarmRestarts':
-                self.schedulers[name] = optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, **scheduler_opts[name])
+                self.schedulers[name] = optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer,
+                                                                                       **scheduler_opts[name])
             elif scheduler_type == 'OneCycleLR':
                 self.schedulers[name] = optim.lr_scheduler.OneCycleLR(optimizer, **scheduler_opts[name])
             elif scheduler_type == 'StepLR':
@@ -359,24 +489,27 @@ class BaseModel:
         if retry == 0:
             logger.warning(f'Still cannot save {save_path}. Just ignore it.')
 
-    def resume_model(self, resume_state, net_only=False):
+    def resume_model(self, resume_state, net_only=False, verbose=True):
         """Reload the net, optimizers and schedulers.
 
         Args:
             resume_state (dict): Resume state.
             net_only (bool): only resume the network state dict. Default False.
+            verbose (bool): print the resuming process
         """
         networks_state_dict = resume_state['networks']
 
         # resume networks
         for name in self.networks:
             if len(list(self.networks[name].parameters())) == 0:
-                logger = get_root_logger()
-                logger.info(f'Network {name} has no param. Ignore it.')
+                if verbose:
+                    logger = get_root_logger()
+                    logger.info(f'Network {name} has no param. Ignore it.')
                 continue
             if name not in networks_state_dict:
-                logger = get_root_logger()
-                logger.warning(f'Network {name} cannot be resumed.')
+                if verbose:
+                    logger = get_root_logger()
+                    logger.warning(f'Network {name} cannot be resumed.')
                 continue
 
             net_state_dict = networks_state_dict[name]
@@ -385,8 +518,9 @@ class BaseModel:
 
             self._get_bare_net(self.networks[name]).load_state_dict(net_state_dict)
 
-            logger = get_root_logger()
-            logger.info(f"Resuming network: {name}")
+            if verbose:
+                logger = get_root_logger()
+                logger.info(f"Resuming network: {name}")
 
         # resume optimizers and schedulers
         if not net_only:
@@ -394,21 +528,25 @@ class BaseModel:
             schedulers_state_dict = resume_state['schedulers']
             for name in self.optimizers:
                 if name not in optimizers_state_dict:
-                    logger = get_root_logger()
-                    logger.warning(f'Optimizer {name} cannot be resumed.')
+                    if verbose:
+                        logger = get_root_logger()
+                        logger.warning(f'Optimizer {name} cannot be resumed.')
                     continue
                 self.optimizers[name].load_state_dict(optimizers_state_dict[name])
             for name in self.schedulers:
                 if name not in schedulers_state_dict:
-                    logger = get_root_logger()
-                    logger.warning(f'Scheduler {name} cannot be resumed.')
+                    if verbose:
+                        logger = get_root_logger()
+                        logger.warning(f'Scheduler {name} cannot be resumed.')
                     continue
                 self.schedulers[name].load_state_dict(schedulers_state_dict[name])
 
             # resume epoch and iter
             self.curr_iter = resume_state['iter']
             self.curr_epoch = resume_state['epoch']
-            logger.info(f"Resuming training from epoch: {self.curr_epoch}, " f"iter: {self.curr_iter}.")
+            if verbose:
+                logger = get_root_logger()
+                logger.info(f"Resuming training from epoch: {self.curr_epoch}, " f"iter: {self.curr_iter}.")
 
     @torch.no_grad()
     def _reduce_loss_dict(self):

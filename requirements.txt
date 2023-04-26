@@ -1,2 +1,6 @@
-torch==1.8.1
-torchvision==0.9.1
+trimesh
+networkx
+robust-laplacian
+potpourri3d
+open3d
+h5py

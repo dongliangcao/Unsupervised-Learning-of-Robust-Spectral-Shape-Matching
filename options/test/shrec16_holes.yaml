@@ -1,0 +1,70 @@
+# general setting
+name: shrec16_holes
+backend: dp # DataParallel
+type: FMNetModel
+num_gpu: auto
+manual_seed: 1234
+refine: 15
+non-isometric: false
+partial: true
+visualize: true
+
+# path
+path:
+  resume_state: checkpoints/shrec16_holes.pth
+  resume: false
+
+# datasets
+datasets:
+  test_dataset:
+    name: Val
+    type: PairShrec16Dataset
+    cut_type: holes
+    data_root: /data/caodongliang/SHREC16_test/
+    return_evecs: true
+    return_faces: true
+    num_evecs: 200
+    return_corr: true
+    return_dist: true
+
+# network setting
+networks:
+  feature_extractor:
+    type: DiffusionNet
+    in_channels: 3
+    out_channels: 256
+    cache_dir: /data/caodongliang/SHREC16/holes/diffusion
+    input_type: xyz
+  fmap_net:
+    type: RegularizedFMNet
+    bidirectional: false
+  permutation:
+    type: Similarity
+    tau: 0.07
+    hard: true
+
+# training setting
+train:
+  optims:
+    feature_extractor:
+      type: Adam
+      lr: 1.0e-3
+  schedulers:
+    feature_extractor:
+      type: none
+  losses:
+    surfmnet_loss:
+      type: PartialFmapsLoss
+      w_bij: 1.0
+      w_orth: 1.0
+    align_loss:
+      type: SquaredFrobeniusLoss
+      loss_weight: 1.0
+
+# validation setting
+val:
+  metrics:
+    geo_error:
+      type: calculate_geodesic_error
+    plot_pck:
+      type: plot_pck
