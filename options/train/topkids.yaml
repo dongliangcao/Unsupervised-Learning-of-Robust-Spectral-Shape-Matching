@@ -1,0 +1,87 @@
+# general setting
+name: topkids
+backend: dp # DataParallel
+type: FMNetModel
+num_gpu: auto
+manual_seed: 1234
+non-isometric: false
+partial: false
+
+# path
+path:
+  resume_state: ~
+
+# datasets
+datasets:
+  train_dataset:
+    name: Train
+    type: PairTopKidsDataset
+    phase: train
+    data_root: ../data/TOPKIDS/
+    return_evecs: True
+    return_faces: True
+    num_evecs: 200
+    return_dist: False
+  test_dataset:
+    name: Test
+    type: PairTopKidsDataset
+    phase: test
+    data_root: ../data/TOPKIDS/
+    return_evecs: True
+    return_faces: True
+    num_evecs: 200
+    return_dist: True
+  # setting for train dataset
+  batch_size: 1
+  num_worker: 16
+
+# network setting
+networks:
+  feature_extractor:
+    type: DiffusionNet
+    in_channels: 128
+    out_channels: 256
+    cache_dir: ../data/TOPKIDS/diffusion
+    input_type: wks
+  fmap_net:
+    type: RegularizedFMNet
+    bidirectional: true
+  permutation:
+    type: Similarity
+    tau: 0.07
+
+# training setting
+train:
+  total_epochs: 100
+  optims:
+    feature_extractor:
+      type: Adam
+      lr: 1.0e-3
+  schedulers:
+    feature_extractor:
+      type: CosineAnnealingLR
+      eta_min: 1.0e-4
+      T_max: 100
+  losses:
+    surfmnet_loss:
+      type: SURFMNetLoss
+      w_bij: 1.0
+      w_orth: 1.0
+      w_lap: 0.0
+    align_loss:
+      type: SquaredFrobeniusLoss
+      loss_weight: 1.0
+
+# validation setting
+val:
+  val_freq: 4000
+  metrics:
+    geo_error:
+      type: calculate_geodesic_error
+    plot_pck:
+      type: plot_pck
+
+# log setting
+logger:
+  print_freq: 20
+  save_checkpoint_freq: 4000
