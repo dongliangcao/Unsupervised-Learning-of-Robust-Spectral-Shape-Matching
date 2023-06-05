@@ -9,7 +9,8 @@ partial: true
 
 # path
 path:
-  resume_state: ~
+  resume_state: checkpoints/tosca.pth
+  resume: false
 
 # datasets
 datasets:
