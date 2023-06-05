@@ -1,4 +1,4 @@
-# Unsupervised Learning of Robust Spectral Shape Matching (SIGGRAPH/TOG 2023)
+## [Unsupervised Learning of Robust Spectral Shape Matching (SIGGRAPH/TOG 2023)](https://arxiv.org/pdf/2304.14419.pdf)
 ![img](figures/teaser.jpg)
 
 ## Installation
@@ -58,7 +58,7 @@ python texture_transfer.py
 ```
 
 ## Pretrained models
-You can find the pre-trained models on SURREAL-5k dataset in [checkpoints](checkpoints) for reproducibility.
+You can find all pre-trained models in [checkpoints](checkpoints) for reproducibility.
 
 ## Acknowledgement
 The implementation of DiffusionNet is based on [the official implementation](https://github.com/nmwsharp/diffusion-net).
