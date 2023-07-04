@@ -1,4 +1,4 @@
-## [Unsupervised Learning of Robust Spectral Shape Matching (SIGGRAPH/TOG 2023)](https://arxiv.org/pdf/2304.14419.pdf)
+## [Unsupervised Learning of Robust Spectral Shape Matching (SIGGRAPH/TOG 2023)](https://dongliangcao.github.io/urssm/)
 ![img](figures/teaser.jpg)
 
 ## Installation
