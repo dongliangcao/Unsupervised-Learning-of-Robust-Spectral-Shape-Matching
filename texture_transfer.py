@@ -46,16 +46,18 @@ if __name__ == '__main__':
     in_channels = 128 if input_type == 'wks' else 3  # 'xyz'
     feature_extractor = DiffusionNet(in_channels=in_channels, out_channels=256, input_type=input_type).to(device)
     feature_extractor.load_state_dict(torch.load(network_path)['networks']['feature_extractor'], strict=True)
+    feature_extractor.eval()
     permutation = Similarity(tau=0.07, hard=True).to(device)
 
     # non-isometric or not
     non_isometric = False  # True
 
-    feat_x = feature_extractor(vert_x.unsqueeze(0), face_x.unsqueeze(0))
-    feat_y = feature_extractor(vert_y.unsqueeze(0), face_y.unsqueeze(0))
-    # normalize features
-    feat_x = F.normalize(feat_x, dim=-1, p=2)
-    feat_y = F.normalize(feat_y, dim=-1, p=2)
+    with torch.no_grad():
+        feat_x = feature_extractor(vert_x.unsqueeze(0), face_x.unsqueeze(0))
+        feat_y = feature_extractor(vert_y.unsqueeze(0), face_y.unsqueeze(0))
+        # normalize features
+        feat_x = F.normalize(feat_x, dim=-1, p=2)
+        feat_y = F.normalize(feat_y, dim=-1, p=2)
 
     if non_isometric:
         # nearest neighbour query
