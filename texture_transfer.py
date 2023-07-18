@@ -179,6 +179,7 @@ if __name__ == '__main__':
     # save results for MATLAB
     save = False  # True
     if save:
+        Cxy, p2p = to_numpy(Cxy), to_numpy(p2p)
         # save functional map and point-wise correspondences
         save_dict = {'Cxy': Cxy, 'p2p': p2p + 1}  # plus one for MATLAB
         sio.savemat(os.path.join(result_path, f'{name_x}-{name_y}.mat'), save_dict)
