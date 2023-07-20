@@ -28,7 +28,7 @@ def to_tensor(vert_np, face_np, device):
     return vert, face
 
 
-def compute_features(vert_x, face_x, vert_y, face_y, feature_extractor, normalize=True):
+def compute_features(vert_x, face_x, vert_y, face_y, feature_extractor, normalize=False):
     feat_x = feature_extractor(vert_x.unsqueeze(0), face_x.unsqueeze(0))
     feat_y = feature_extractor(vert_y.unsqueeze(0), face_y.unsqueeze(0))
     # normalize features
@@ -39,7 +39,11 @@ def compute_features(vert_x, face_x, vert_y, face_y, feature_extractor, normaliz
     return feat_x, feat_y
 
 
-def compute_permutation_matrix(feat_x, feat_y, permutation, bidirectional=False):
+def compute_permutation_matrix(feat_x, feat_y, permutation, bidirectional=False, normalize=True):
+    # normalize features
+    if normalize:
+        feat_x = F.normalize(feat_x, dim=-1, p=2)
+        feat_y = F.normalize(feat_y, dim=-1, p=2)
     similarity = torch.bmm(feat_x, feat_y.transpose(1, 2))
 
     Pxy = permutation(similarity)
