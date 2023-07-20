@@ -97,6 +97,7 @@ if __name__ == '__main__':
     in_channels = 128 if input_type == 'wks' else 3  # 'xyz'
     feature_extractor = DiffusionNet(in_channels=in_channels, out_channels=256, input_type=input_type).to(device)
     feature_extractor.load_state_dict(torch.load(network_path)['networks']['feature_extractor'], strict=True)
+    feature_extractor.eval()
     permutation = Similarity(tau=0.07, hard=True).to(device)
 
     # non-isometric or not
@@ -107,7 +108,7 @@ if __name__ == '__main__':
     # partial or not
     partial = False
     if num_refine > 0:
-        feature_extractor.train()
+        permutation.hard = False
         fmap_net = RegularizedFMNet(bidirectional=True)
         optimizer = optim.Adam(feature_extractor.parameters(), lr=1e-3)
         fmap_loss = SURFMNetLoss(w_bij=1.0, w_orth=1.0, w_lap=0.0) if not partial else PartialFmapsLoss(w_bij=1.0, w_orth=1.0)
@@ -148,6 +149,7 @@ if __name__ == '__main__':
             pbar.set_description(f'Total loss: {loss:.4f}')
 
     feature_extractor.eval()
+    permutation.hard = True
     with torch.no_grad():
         feat_x, feat_y = compute_features(vert_x, face_x, vert_y, face_y, feature_extractor, normalize=True)
 
