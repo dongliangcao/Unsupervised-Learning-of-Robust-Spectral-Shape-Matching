@@ -149,7 +149,7 @@ if __name__ == '__main__':
 
     feature_extractor.eval()
     with torch.no_grad():
-        feat_x, feat_y = compute_features(vert_x, face_x, vert_y, face_y, feature_extractor)
+        feat_x, feat_y = compute_features(vert_x, face_x, vert_y, face_y, feature_extractor, normalize=True)
 
     if non_isometric:
         # nearest neighbour query
