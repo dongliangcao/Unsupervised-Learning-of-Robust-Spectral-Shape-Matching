@@ -60,8 +60,25 @@ python texture_transfer.py
 ## Pretrained models
 You can find all pre-trained models in [checkpoints](checkpoints) for reproducibility.
 
+## Partial Shape Matching on SHREC’16
+There were two issues with the partial shape matching experiments on the SHREC'16 dataset related to the training/test splits [Bracha et al. 2023, Ehm et al. 2024]. Below, we provide additional evaluations that substantiate our claims:
+| Geo err (x100)    | CUTS on CUTS | CUTS on HOLES | HOLES on CUTS | HOLES on HOLES | CUTS on CUTS'24* | HOLES on CUTS'24* |
+| ----------------  | :----------: | :------------:|:------------: |:------------:  | :---------------:|:-----------------:|
+| Ours original**   |   3.3        | 13.7          |5.2            |  9.1           | 3.4              |5.5                |
+| Ours new***       |   3.2        | 13.5          |5.6            |  8.2           | 3.2              |5.9                |
+
+\*   CUTS'24 refers to the new test split from [Ehm et al. 2024], the split can be found [here](https://github.com/vikiehm/geometrically-consistent-partial-partial-shape-matching/tree/main/CUTS24).
+
+**  Pretrained on TOSCA
+
+*** Pretrained on FAUST + SCAPE + SMAL + DT4D-H, 25 test-time adaptation iterations
+
+[[Bracha et al. 2023] A. Bracha, T. Dages, R. Kimmel, On Partial Shape Correspondence and Functional Maps, arXiv 2023](https://arxiv.org/abs/2310.14692).
+
+[[Ehm et al. 2024] V. Ehm, M. Gao, P. Roetzer, M. Eisenberger, D. Cremers, F. Bernard, Partial-to-Partial Shape Matching with Geometric Consistency, CVPR 2024](https://arxiv.org/abs/2404.12209).
+
+
 ## Acknowledgement
 The implementation of DiffusionNet is based on [the official implementation](https://github.com/nmwsharp/diffusion-net).
 
 The framework implementation is adapted from [Unsupervised Deep Multi Shape Matching](https://github.com/dongliangcao/Unsupervised-Deep-Multi-Shape-Matching).
-
